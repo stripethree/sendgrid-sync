@@ -1,0 +1,21 @@
+{
+  "name": "sendgrid-sync",
+  "version": "0.0.1",
+  "description": "An experiment with SendGrid's API for syncing templates",
+  "main": "src/index.js",
+  "repository": "git@github.com:stripethree/sendgrid-sync.git",
+  "author": "Jeff Israel <github@jeffisrael.com>",
+  "dependencies": {
+    "@sendgrid/client": "^7.4.0"
+  },
+  "scripts": {
+    "lint": "eslint --ignore-path .gitignore .",
+    "sync": "node src/index.js"
+  },
+  "devDependencies": {
+    "eslint": "^7.13.0",
+    "eslint-config-prettier": "^6.15.0",
+    "eslint-plugin-prettier": "^3.1.4",
+    "prettier": "^2.1.2"
+  }
+}
