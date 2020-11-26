@@ -38,9 +38,9 @@ function readTemplateLookupFromFile() {
 
 function readTemplateFromFile(templateId) {
   const htmlFilename = `${TEMPLATE_DIR}/${templateId}/.html`;
-  return new Promise(function (resolve, reject) {
-    fs.readFile(htmlFilename, 'utf8', function (err, htmlData) {
-      err ? reject(err) : resolve(htmlData);
+  return new Promise((resolve, reject) => {
+    fs.readFile(htmlFilename, 'utf8', (err, htmlData) => {
+      return err ? reject(err) : resolve(htmlData);
     });
   });
 }
@@ -121,7 +121,9 @@ function writeTemplateVersionsToFile(templateId) {
 const templateLookup = readTemplateLookupFromFile();
 const updateQueue = [];
 
-fs.existsSync(TEMPLATE_DIR) || fs.mkdirSync(TEMPLATE_DIR);
+if (fs.existsSync(TEMPLATE_DIR)) {
+  fs.mkdirSync(TEMPLATE_DIR);
+}
 
 getTemplates()
   .then(([response, body]) => {
@@ -129,7 +131,7 @@ getTemplates()
     console.log(JSON.stringify(sgTemplateList, '\n', '  '));
 
     sgTemplateList.forEach((sgTemplate) => {
-      if (!templateLookup.hasOwnProperty(sgTemplate.id)) {
+      if (!(sgTemplate.id in templateLookup)) {
         console.debug(`Adding template ${sgTemplate.id} to lookup.`);
         templateLookup[sgTemplate.id] = {
           name: sgTemplate.name,
@@ -138,9 +140,7 @@ getTemplates()
       }
 
       sgTemplate.versions.forEach((sgTemplateVersion) => {
-        if (
-          !templateLookup[sgTemplate.id].hasOwnProperty(sgTemplateVersion.id)
-        ) {
+        if (!(sgTemplateVersion.id in templateLookup[sgTemplate.id])) {
           console.debug(
             `Adding version ${sgTemplateVersion.id} of template ${sgTemplate.id} to lookup.`,
           );
@@ -162,7 +162,6 @@ getTemplates()
         writeTemplateVersionsToFile(templateUpdate.templateId),
       ),
     );
-
   })
   .then(([filesWritten]) => {
     console.log(filesWritten);
