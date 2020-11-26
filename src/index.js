@@ -118,53 +118,63 @@ function writeTemplateVersionsToFile(templateId) {
     - if date/time modified is later than what is in the lookup, update it
 */
 
-const templateLookup = readTemplateLookupFromFile();
-const updateQueue = [];
-
-if (fs.existsSync(TEMPLATE_DIR)) {
+function fetchTemplates() {
+  if (fs.existsSync(TEMPLATE_DIR)) {
+    fs.rmdirSync(TEMPLATE_DIR, { recursive: true });
+  }
   fs.mkdirSync(TEMPLATE_DIR);
+
+  const templateLookup = [];
+  const updateQueue = [];
+
+  getTemplates()
+    .then(([response, body]) => {
+      const sgTemplateList = body.result;
+
+      sgTemplateList.forEach((sgTemplate) => {
+        if (!(sgTemplate.id in templateLookup)) {
+          console.debug(`Adding template '${sgTemplate.id}`);
+          templateLookup[sgTemplate.id] = {
+            name: sgTemplate.name,
+            versions: {},
+          };
+        }
+
+        sgTemplate.versions.forEach((sgTemplateVersion) => {
+          if (!(sgTemplateVersion.id in templateLookup[sgTemplate.id])) {
+            console.debug(
+              `Adding version '${sgTemplateVersion.id}] of template '${sgTemplate.id}`,
+            );
+            templateLookup[sgTemplate.id][sgTemplateVersion.id] = {
+              name: sgTemplateVersion.name,
+              active: sgTemplateVersion.active,
+              lastUpdated: sgTemplateVersion.updated_at,
+            };
+            updateQueue.push({
+              templateId: sgTemplate.id,
+              versionId: sgTemplateVersion.id,
+            });
+          }
+        });
+      });
+
+      return Promise.all(
+        updateQueue.map((templateUpdate) =>
+          writeTemplateVersionsToFile(templateUpdate.templateId),
+        ),
+      );
+    })
+    .then(([filesWritten]) => {
+      console.log(`Templates saved: ${filesWritten.length}`);
+      writeTemplateLookupToFile(templateLookup);
+      console.log(`Template lookup saved to ${TEMPLATE_MAP_FILENAME}`);
+    })
+    .catch((err) => console.error(err));
 }
 
-getTemplates()
-  .then(([response, body]) => {
-    const sgTemplateList = body.result;
-    console.log(JSON.stringify(sgTemplateList, '\n', '  '));
+/*
+const templateLookup = readTemplateLookupFromFile();
+const updateQueue = [];
+*/
 
-    sgTemplateList.forEach((sgTemplate) => {
-      if (!(sgTemplate.id in templateLookup)) {
-        console.debug(`Adding template ${sgTemplate.id} to lookup.`);
-        templateLookup[sgTemplate.id] = {
-          name: sgTemplate.name,
-          versions: {},
-        };
-      }
-
-      sgTemplate.versions.forEach((sgTemplateVersion) => {
-        if (!(sgTemplateVersion.id in templateLookup[sgTemplate.id])) {
-          console.debug(
-            `Adding version ${sgTemplateVersion.id} of template ${sgTemplate.id} to lookup.`,
-          );
-          templateLookup[sgTemplate.id][sgTemplateVersion.id] = {
-            name: sgTemplateVersion.name,
-            active: sgTemplateVersion.active,
-            lastUpdated: sgTemplateVersion.updated_at,
-          };
-          updateQueue.push({
-            templateId: sgTemplate.id,
-            versionId: sgTemplateVersion.id,
-          });
-        }
-      });
-    });
-
-    return Promise.all(
-      updateQueue.map((templateUpdate) =>
-        writeTemplateVersionsToFile(templateUpdate.templateId),
-      ),
-    );
-  })
-  .then(([filesWritten]) => {
-    console.log(filesWritten);
-    writeTemplateLookupToFile(templateLookup);
-  })
-  .catch((err) => console.error(err));
+fetchTemplates();

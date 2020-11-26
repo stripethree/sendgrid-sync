@@ -10,7 +10,7 @@
     "format": "prettier --write \"**/*.js\" --loglevel warn",
     "lint": "eslint src --ext .js,.jsx .",
     "lint-fix": "eslint src --fix --ext .js,.jsx .",
-    "sync": "node src/index.js"
+    "fetch": "node src/index.js"
   },
   "dependencies": {
     "@sendgrid/client": "^7.4.0"
