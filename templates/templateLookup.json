@@ -1,1 +1,12 @@
-[]
+{
+  "d-ef02aefe705b403b9da9eb2fd41eef21": {
+    "name": "Test template",
+    "versions": {
+      "0ad15168-378e-4153-be8a-3e7131eb1e16": {
+        "name": "v0.0.1",
+        "active": 1,
+        "lastUpdated": "2020-11-20 03:40:35"
+      }
+    }
+  }
+}

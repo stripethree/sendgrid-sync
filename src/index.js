@@ -1,8 +1,8 @@
 const fs = require('fs');
 const sgClient = require('@sendgrid/client');
 
-const TEMPLATE_DIR = 'templates';
-const TEMPLATE_MAP_FILENAME = `${TEMPLATE_DIR}/templateLookup.json`;
+const TEMPLATES_DIR = 'templates';
+const TEMPLATE_LOOKUP_FILENAME = `${TEMPLATES_DIR}/templateLookup.json`;
 
 sgClient.setApiKey(process.env.SENDGRID_API_KEY);
 
@@ -27,17 +27,14 @@ function getTemplate(templateId) {
 }
 
 function readTemplateLookupFromFile() {
-  if (!fs.existsSync(TEMPLATE_MAP_FILENAME)) {
-    console.log(
-      `No template mapping definition found at ${TEMPLATE_MAP_FILENAME}`,
-    );
+  if (!fs.existsSync(TEMPLATE_LOOKUP_FILENAME)) {
     return {};
   }
-  return JSON.parse(fs.readFileSync(TEMPLATE_MAP_FILENAME));
+  return JSON.parse(fs.readFileSync(TEMPLATE_LOOKUP_FILENAME));
 }
 
 function readTemplateFromFile(templateId) {
-  const htmlFilename = `${TEMPLATE_DIR}/${templateId}/.html`;
+  const htmlFilename = `${TEMPLATES_DIR}/${templateId}/.html`;
   return new Promise((resolve, reject) => {
     fs.readFile(htmlFilename, 'utf8', (err, htmlData) => {
       return err ? reject(err) : resolve(htmlData);
@@ -85,96 +82,85 @@ function updateTemplateVersion(templateId, versionId, templateVersionData) {
 
 function writeTemplateLookupToFile(templateLookup) {
   fs.writeFileSync(
-    TEMPLATE_MAP_FILENAME,
+    TEMPLATE_LOOKUP_FILENAME,
     JSON.stringify(templateLookup, '\n', '  '),
   );
 }
 
-function writeTemplateVersionsToFile(templateId) {
-  const templateDir = `${TEMPLATE_DIR}/${templateId}`;
-
+async function writeTemplateVersionsToFile(templateId, versionsToUpdate) {
+  const templateDir = `${TEMPLATES_DIR}/${templateId}`;
   if (!fs.existsSync(templateDir)) {
     fs.mkdirSync(templateDir);
   }
-
-  return getTemplate(templateId).then(([response, body]) => {
-    return body.versions.map((templateVersion) => {
-      const htmlFilename = `${templateDir}/${templateVersion.id}.html`;
-      fs.writeFileSync(htmlFilename, templateVersion.html_content);
-      return htmlFilename;
-    });
+  return getTemplate(templateId).then(([, body]) => {
+    return body.versions
+      .filter((templateVersion) => {
+        return versionsToUpdate.includes(templateVersion.id);
+      })
+      .map((templateVersion) => {
+        const htmlFilename = `${templateDir}/${templateVersion.id}.html`;
+        fs.writeFileSync(htmlFilename, templateVersion.html_content);
+        return htmlFilename;
+      });
   });
 }
 
-/*
-- load template lookup
-- get all templates
-- for each template:
-  - if template directory does not exist:
-    - create it
-    - add template to lookup
-  - for each template version:
-    - if the template version file does not exist, create it
-    - if date/time modified is later than what is in the lookup, update it
-*/
+if (!fs.existsSync(TEMPLATES_DIR)) {
+  fs.mkdirSync(TEMPLATES_DIR);
+}
 
-function fetchTemplates() {
-  if (fs.existsSync(TEMPLATE_DIR)) {
-    fs.rmdirSync(TEMPLATE_DIR, { recursive: true });
-  }
-  fs.mkdirSync(TEMPLATE_DIR);
+// TODO: fetch existing lookup
+const templateLookup = readTemplateLookupFromFile();
+const templateUpdates = {};
 
-  const templateLookup = [];
-  const updateQueue = [];
+getTemplates()
+  .then(([, body]) => {
+    const sgTemplateList = body.result;
 
-  getTemplates()
-    .then(([response, body]) => {
-      const sgTemplateList = body.result;
+    sgTemplateList.forEach((sgTemplate) => {
+      if (!(sgTemplate.id in templateLookup)) {
+        templateLookup[sgTemplate.id] = {
+          name: sgTemplate.name,
+          versions: {},
+        };
+      }
 
-      sgTemplateList.forEach((sgTemplate) => {
-        if (!(sgTemplate.id in templateLookup)) {
-          console.debug(`Adding template '${sgTemplate.id}`);
-          templateLookup[sgTemplate.id] = {
-            name: sgTemplate.name,
-            versions: {},
+      sgTemplate.versions.forEach((sgTemplateVersion) => {
+        const newVersion = !(
+          sgTemplateVersion.id in templateLookup[sgTemplate.id].versions
+        );
+
+        if (newVersion) {
+          templateLookup[sgTemplate.id].versions[sgTemplateVersion.id] = {
+            name: sgTemplateVersion.name,
+            active: sgTemplateVersion.active,
+            lastUpdated: sgTemplateVersion.updated_at,
           };
         }
 
-        sgTemplate.versions.forEach((sgTemplateVersion) => {
-          if (!(sgTemplateVersion.id in templateLookup[sgTemplate.id])) {
-            console.debug(
-              `Adding version '${sgTemplateVersion.id}] of template '${sgTemplate.id}`,
-            );
-            templateLookup[sgTemplate.id][sgTemplateVersion.id] = {
-              name: sgTemplateVersion.name,
-              active: sgTemplateVersion.active,
-              lastUpdated: sgTemplateVersion.updated_at,
-            };
-            updateQueue.push({
-              templateId: sgTemplate.id,
-              versionId: sgTemplateVersion.id,
-            });
+        const lastUpdatedApi = new Date(sgTemplateVersion.updated_at);
+        const lastUpdatedLocal = new Date(
+          templateLookup[sgTemplate.id].versions[
+            sgTemplateVersion.id
+          ].lastUpdated,
+        );
+        const templateVersionUpdated = lastUpdatedApi > lastUpdatedLocal;
+        if (newVersion || templateVersionUpdated) {
+          if (!(sgTemplate.id in templateUpdates)) {
+            templateUpdates[sgTemplate.id] = [];
           }
-        });
+          templateUpdates[sgTemplate.id].push(sgTemplateVersion.id);
+        }
       });
+    });
 
-      return Promise.all(
-        updateQueue.map((templateUpdate) =>
-          writeTemplateVersionsToFile(templateUpdate.templateId),
-        ),
-      );
-    })
-    .then(([filesWritten]) => {
-      console.log(`Templates saved: ${filesWritten.length}`);
-      writeTemplateLookupToFile(templateLookup);
-      console.log(`Template lookup saved to ${TEMPLATE_MAP_FILENAME}`);
-    })
-    .catch((err) => console.error(err));
-}
-
-/*
-const templateLookup = readTemplateLookupFromFile();
-const updateQueue = [];
-*/
-
-fetchTemplates();
+    return Promise.all(
+      Object.entries(templateUpdates).map(([templateId, templateVersions]) => {
+        return writeTemplateVersionsToFile(templateId, templateVersions);
+      }),
+    );
+  })
+  .then(() => {
+    writeTemplateLookupToFile(templateLookup);
+  })
+  .catch((err) => console.error(err));
