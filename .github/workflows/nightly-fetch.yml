@@ -47,3 +47,13 @@ jobs:
           git push --set-upstream origin \
             ${{ steps.get-branch-name.outputs.branch-name }}
         if: steps.status.outputs.has_changes == 'yes'      
+
+      - name: Open a pull request
+        uses: repo-sync/pull-request@v2
+        with:
+          source_branch: ${{ steps.get-branch-name.outputs.branch-name }}
+          destination_branch: "main"
+          pr_title: "Template updates from $(date +'%Y-%m-%d')"
+          pr_body: "Template changes pulled via the SendGrid API"
+          pr_label: "github actions"
+          github_token: ${{ secrets.GITHUB_TOKEN }}
