@@ -35,6 +35,7 @@ jobs:
       - name: Get branch name
         id: get-branch-name
         run: echo "::set-output name=branch-name::templates-$(date +'%Y-%m-%d')"
+        if: steps.status.outputs.has_changes == 'yes'      
 
       - name: Create branch and commit changes
         run: |
@@ -57,3 +58,4 @@ jobs:
           pr_body: "Template changes pulled via the SendGrid API"
           pr_label: "github actions"
           github_token: ${{ secrets.GITHUB_TOKEN }}
+        if: steps.status.outputs.has_changes == 'yes'      
