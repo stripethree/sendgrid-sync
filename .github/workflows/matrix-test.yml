@@ -11,13 +11,13 @@ jobs:
         include:
           - environment: "qa"
             branch-name: "main"
-            api-key: "SENDGRID_API_KEY_QA"
+            api-key: ${{ secrets.SENDGRID_API_KEY_QA }}
           - environment: "staging"
             branch-name: "staging"
-            api-key: "SENDGRID_API_KEY_STAGING"
+            api-key: ${{ secrets.SENDGRID_API_KEY_STAGING }}
           - environment: "production"
             branch-name: "production"
-            api-key: "SENDGRID_API_KEY_PRODUCTION"
+            api-key: ${{ secrets.SENDGRID_API_KEY_PRODUCTION }}
     
     steps:
 
@@ -26,4 +26,4 @@ jobs:
           BRANCH_NAME: ${{ matrix.branch-name }}
           ENV_NAME: ${{ matrix.environment }}
           SENDGRID_API_KEY: ${{ matrix.api-key }}
-        run: echo ${BRANCH_NAME} ${ENV_NAME} ${{ secrets[ 'SENDGRID_API_KEY' ] }}
+        run: echo "${BRANCH_NAME} ${ENV_NAME} ${SENDGRID_API_KEY}
