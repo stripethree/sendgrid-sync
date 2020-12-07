@@ -1,10 +1,6 @@
 name: Fetch Templates
 
-on:
-  schedule:
-    - cron: "45 4 * * *" # Every morning at 4:45 am Central
-
-  workflow_dispatch:
+on: [push, workflow_dispatch]
 
 jobs:
   matrix-test:
