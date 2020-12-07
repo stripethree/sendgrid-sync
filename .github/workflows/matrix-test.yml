@@ -26,4 +26,4 @@ jobs:
           BRANCH_NAME: ${{ matrix.branch-name }}
           ENV_NAME: ${{ matrix.environment }}
           SENDGRID_API_KEY: ${{ matrix.api-key }}
-        run: echo ${BRANCH_NAME} ${ENV_NAME} ${{ secrets[ '${SENDGRID_API_KEY}' ] }}
+        run: echo ${BRANCH_NAME} ${ENV_NAME} ${{ secrets[ 'SENDGRID_API_KEY' ] }}
