@@ -1,4 +1,4 @@
-name: Fetch Templates
+name: Get Env Var
 
 on: [push, workflow_dispatch]
 
@@ -9,21 +9,23 @@ jobs:
     strategy:
       matrix:
         include:
-          - environment: "qa"
+          - environment: "QA"
             branch-name: "main"
-            api-key: ${{ secrets.SENDGRID_API_KEY_QA }}
-          - environment: "staging"
+          - environment: "STAGING"
             branch-name: "staging"
-            api-key: ${{ secrets.SENDGRID_API_KEY_STAGING }}
-          - environment: "production"
+          - environment: "PRODUCTION"
             branch-name: "production"
-            api-key: ${{ secrets.SENDGRID_API_KEY_PRODUCTION }}
     
     steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
-      - name: Echo site details
+      - name: Add environment variable
         env:
-          BRANCH_NAME: ${{ matrix.branch-name }}
           ENV_NAME: ${{ matrix.environment }}
-          SENDGRID_API_KEY: ${{ matrix.api-key }}
-        run: echo "${BRANCH_NAME} ${ENV_NAME} ${SENDGRID_API_KEY}
+        run: |
+          echo "SENDGRID_API_KEY=${{ secrets[format('SENDGRID_API_KEY_{0}', env.ENV_NAME)] }}" >> $GITHUB_ENV
+
+      - name: Test environment variable
+        run: echo "hell yeah"
+        if: env.SENDGRID_API_KEY == 'this is the qa key'
